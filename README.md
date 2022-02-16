@@ -17,7 +17,7 @@ Into:
 
 <img width="400" alt="Screenshot 2022-02-16 at 10 01 17" src="https://user-images.githubusercontent.com/14551392/154231279-4b564095-0b7a-4a48-ae33-050503ce546a.png">
 
-# Bad quality?
+# Image enhancement?
 
 Yes! Take this receipt for an example:
 
@@ -34,3 +34,7 @@ Let's try enhancing the image and scanning again:
 <img width="1008" alt="Screenshot 2022-02-16 at 10 35 28" src="https://user-images.githubusercontent.com/14551392/154236483-07dac43e-20f3-4a4b-9ac0-038fb7c0c4d6.png">
 
 Same image, enhanced.
+
+To give you a better idea of what super resolution really does and how it helps:
+
+<img width="362" alt="Screenshot 2022-02-16 at 10 37 58" src="https://user-images.githubusercontent.com/14551392/154237096-ca6686ac-2e85-492a-aa76-631b463e3f03.png">
