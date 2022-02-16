@@ -3,6 +3,8 @@ from PIL import Image
 from pyzbar.pyzbar import decode
 from pyzbar.pyzbar import ZBarSymbol
 from PIL import Image
+from io import BytesIO
+import enhance
 import cv2
 import sys
 
@@ -46,13 +48,16 @@ def draw_barcode(decoded, image):
     return image
 
 def decode_barcode(image):
-    # decodes all barcodes from an image
-    #ret, bw_im = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
-    # zbar
-    #img = cv2.imread(s, cv2.IMREAD_GRAYSCALE)
-    im = Image.open(image)
+    """Decode a barcode
+
+    Args:
+        image (BytesIO): the image STREAM. So this function wants the output of BytesIO(bytes)
+
+    Returns:
+        Decoded: The decoded data.
+    """
     return decode(
-        im,
+        Image.open(image),
         symbols=[
             ZBarSymbol.CODE128,
             ZBarSymbol.CODABAR,

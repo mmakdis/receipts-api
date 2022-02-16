@@ -2,21 +2,26 @@ import boto3
 import botocore
 import sys
 import json
+import io
+import os
+import enhance
+import decimal
+import barcode
+import pandas as pd
+import matplotlib.pyplot as plt
+import cv2
+from tools import get_bytes
+from IPython.display import display
+from PIL import Image, ImageDraw
+from numpy import isin
 from sympy import pretty_print
 from tensorboard import summary
 from textractprettyprinter.t_pretty_print_expense import get_string
 from textractprettyprinter.t_pretty_print_expense import Textract_Expense_Pretty_Print, Pretty_Print_Table_Format
-import io
-import os
-from PIL import Image, ImageDraw
-import decimal
-import pandas as pd
-from IPython.display import display
-import matplotlib.pyplot as plt
-import cv2
 
 
 bucket = "myreceiptsbuclet"
+
 
 def draw_bounding_box(key, val, width, height, draw):
     # If a key is Geometry, draw the bounding box info in it
@@ -27,6 +32,7 @@ def draw_bounding_box(key, val, width, height, draw):
         top = height * box['Top']
         draw.rectangle([left, top, left + (width * box['Width']), top + (height * box['Height'])],
                        outline='black')
+
 
 def print_labels_and_values(field):
     # Only if labels are detected and returned
@@ -42,29 +48,7 @@ def print_labels_and_values(field):
         # print(field.get("ValueDetection")["Geometry"])
     else:
         print("(no value)")
-        
-        
-def get_bytes(image: Image, format='JPEG'):
-            """
-            Helper method to extract corresponding bytes if image would be saved as 'format'.
-            :param image: The image.
-            :param format: The format.
-            """
-            buf = io.BytesIO()
-            image.save(buf, format=format)
-            return buf.getvalue()
 
-
-def get_bytes(image: str, format='JPEG'):
-            """
-            Helper method to extract corresponding bytes if image would be saved as 'format'.
-            :param image: The image.
-            :param format: The format.
-            """
-            with Image.open(image) as img:
-                buf = io.BytesIO()
-                img.save(buf, format=format)
-                return buf.getvalue()
 
 def float_price(price: str) -> float:
     """Convert a string containing a price to a float. 
@@ -91,7 +75,8 @@ def float_price(price: str) -> float:
         return float(price)
     except:
         raise ValueError("Not a valid price")
-    
+
+
 def clean_field(field) -> dict:
     """Clean the field's Geomtery keys
     (everything in it, boundingboxes, polygon etc)
@@ -108,6 +93,7 @@ def clean_field(field) -> dict:
             field["ValueDetection"].pop("Geometry", None)
     return field
 
+
 def parse_output(response):
     """Parses Textract's output and returns a structured JSON.
 
@@ -120,8 +106,7 @@ def parse_output(response):
     if "detail" in response:
         # print(response["detail"])
         return response
-    pretty_printed_string = get_string(textract_json=response, output_type=[Textract_Expense_Pretty_Print.SUMMARY, Textract_Expense_Pretty_Print.LINEITEMGROUPS], table_format=Pretty_Print_Table_Format.fancy_grid)
-    print(pretty_printed_string)
+    # pretty_printed_string = get_string(textract_json=response, output_type=[Textract_Expense_Pretty_Print.SUMMARY, Textract_Expense_Pretty_Print.LINEITEMGROUPS], table_format=Pretty_Print_Table_Format.fancy_grid)
     quantity = ""
     metadata = {"vendor": "", "products": {}, "meta": {}, "total": {}}
     for expense_doc in response["ExpenseDocuments"]:
@@ -158,12 +143,21 @@ def parse_output(response):
                 metadata["total"]["subtotal"] = summary_field["ValueDetection"]["Text"]
     return metadata
 
-def process_receipt(image) -> dict:
+
+def process_receipt(image, upscale=True) -> dict:
     """Process a receipt with Textract API
 
     Args:
         image (bytes): the image in bytes.
     """
+
+    if upscale:
+        waifu2x = enhance.Waifu2x()
+        enhanced_image = waifu2x.deepai_api(image)
+        image = enhanced_image or image
+    image_stream = io.BytesIO(image)
+    image = image_stream.read()
+
     s3_connection = boto3.resource('s3')
     client = boto3.client('textract', region_name="eu-west-2")
     response = client.analyze_expense(
@@ -174,7 +168,14 @@ def process_receipt(image) -> dict:
     for expense_doc in response["ExpenseDocuments"]:
         if not expense_doc["SummaryFields"]:
             return {"detail": "Not a valid receipt!"}
-    return parse_output(response)
+    output = parse_output(response)
+    output["barcode"] = {}
+    barcode_data = barcode.decode_barcode(image_stream)
+    if len(barcode_data) == 1:
+        output["barcode"]["type"] = barcode_data[0][1]
+        output["barcode"]["data"] = barcode_data[0][0].decode("utf-8")
+    return output 
+
 
 def process_text_detection(bucket, document):
     # Get the document from S3
@@ -199,6 +200,7 @@ def process_text_detection(bucket, document):
     # Create drawing object
     # width, height = image.size
     # draw = ImageDraw.Draw(image)
+
 
 def upload_bucket(image, bucket=bucket, overwrite=False) -> bool:
     """Upload an object as a bucket
@@ -228,11 +230,13 @@ def upload_bucket(image, bucket=bucket, overwrite=False) -> bool:
             return True
     return False
 
+
 def main():
     # bucket = 'myreceiptsbucket'
     # document = 'UploadHIP15.jpeg'
     # process_text_detection(bucket, document)
-    response = process_receipt(get_bytes(f"./data/maximages/{sys.argv[1]}", format="jpeg"))
+    img_bytes = get_bytes(f"../data/maximages/{sys.argv[1]}", format="jpeg")
+    response = process_receipt(img_bytes, upscale=True)
     print(json.dumps(response, indent=4))
     
 
