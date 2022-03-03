@@ -2,7 +2,6 @@
 Helper methods.
 """
 import json
-import config
 import secrets
 import io
 from PIL import Image

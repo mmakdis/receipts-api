@@ -15,6 +15,17 @@ def get_json(metadata: dict) -> bytes:
     """
     return json.dumps(metadata, sort_keys=True).encode()
 
+def get_dict(metadata: str) -> dict:
+    """Reverse get_json()
+
+    Args:
+        metadata (str): the JSON dict representation
+
+    Returns:
+        dict: the pickle data.
+    """
+    return json.loads(metadata)
+
 def hash_receipt(metadata: dict) -> str:
     """Hash a dictionary
 
@@ -38,8 +49,8 @@ def receipts_similarity(receipt1: dict, receipt2: dict) -> float:
     Returns:
         float: _description_
     """
-    receipt1 = get_json(receipt1).enocde("utf-8")
-    receipt2 = get_json(receipt2).enocde("utf-8")
+    receipt1 = get_json(receipt1).decode("utf-8")
+    receipt2 = get_json(receipt2).decode("utf-8")
     return jellyfish.jaro_similarity(receipt1, receipt2)
 
 

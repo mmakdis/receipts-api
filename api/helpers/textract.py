@@ -7,10 +7,7 @@ import json
 import io
 import os
 import matplotlib.pyplot as plt
-from lib import barcode, enhance
-from lib.tools import get_bytes
-from textractprettyprinter.t_pretty_print_expense import get_string
-from textractprettyprinter.t_pretty_print_expense import Textract_Expense_Pretty_Print, Pretty_Print_Table_Format
+from helpers import barcode, enhance, tools
 from PIL import Image
 
 
@@ -97,11 +94,20 @@ def parse_output(response):
     if "detail" in response:
         # print(response["detail"])
         return response
-    pretty_printed_string = get_string(textract_json=response, output_type=[Textract_Expense_Pretty_Print.SUMMARY, Textract_Expense_Pretty_Print.LINEITEMGROUPS], table_format=Pretty_Print_Table_Format.fancy_grid)
-    #print(pretty_printed_string)
     quantity = ""
     metadata = {"vendor": "", "products": {}, "meta": {}, "total": {}}
     for expense_doc in response["ExpenseDocuments"]:
+        for summary_field in expense_doc["SummaryFields"]:
+            summary_field = clean_field(summary_field)
+            current_value = summary_field["ValueDetection"]["Text"].lower()
+            if summary_field["Type"]["Text"] == "VENDOR_NAME":
+                metadata["vendor"] = current_value
+            if summary_field["Type"]["Text"] == "OTHER":
+                metadata["meta"][summary_field["LabelDetection"]["Text"].lower()] = current_value
+            if summary_field["Type"]["Text"] == "TOTAL":
+                metadata["total"]["total"] = current_value
+            if summary_field["Type"]["Text"] == "SUBTOTAL":
+                metadata["total"]["subtotal"] = current_value
         for line_item_group in expense_doc["LineItemGroups"]:
             for line_items in line_item_group["LineItems"]:
                 current_item = ""
@@ -109,30 +115,24 @@ def parse_output(response):
                     #print_labels_and_values(expense_fields)
                     # all that bs making it harder to work with the data 
                     expense_fields = clean_field(expense_fields)
+                    current_value = expense_fields["ValueDetection"]["Text"].lower()
+                    if current_value == metadata["vendor"]:
+                        continue
                     if expense_fields["Type"]["Text"] == "ITEM":
-                        current_item = expense_fields["ValueDetection"]["Text"]
+                        current_item = current_value
                         metadata["products"][current_item] = {}
                         if quantity:
                             metadata["products"][current_item]["quantity"] = quantity
                             quantity = ""
                     if expense_fields["Type"]["Text"] == "QUANTITY":
-                        quantity = expense_fields["ValueDetection"]["Text"]
+                        quantity = current_value
                     if expense_fields["Type"]["Text"] == "PRICE":
-                        price = expense_fields["ValueDetection"]["Text"]
+                        price = current_value
                         metadata["products"][current_item]["price"] = price
                     # reset current item
                     if expense_fields["Type"]["Text"] == "EXPENSE_ROW":
                         current_item = ""
-        for summary_field in expense_doc["SummaryFields"]:
-            summary_field = clean_field(summary_field)
-            if summary_field["Type"]["Text"] == "VENDOR_NAME":
-                metadata["vendor"] = summary_field["ValueDetection"]["Text"]
-            if summary_field["Type"]["Text"] == "OTHER":
-                metadata["meta"][summary_field["LabelDetection"]["Text"]] = summary_field["ValueDetection"]["Text"]
-            if summary_field["Type"]["Text"] == "TOTAL":
-                metadata["total"]["total"] = summary_field["ValueDetection"]["Text"]
-            if summary_field["Type"]["Text"] == "SUBTOTAL":
-                metadata["total"]["subtotal"] = summary_field["ValueDetection"]["Text"]
+        
     return metadata
 
 
@@ -161,6 +161,7 @@ def process_receipt(image, upscale=False) -> dict:
     try:
         output = parse_output(response)
     except KeyError as e:
+        print(e)
         return {"detail": "Something went wrong, try enhancing the image maybe?"}
     output["barcode"] = {}
     barcode_data = barcode.decode_barcode(image_stream)
@@ -202,7 +203,7 @@ def upload_bucket(image, bucket = "myreceiptsbuclet", overwrite=False) -> bool:
 def main():
     # bucket = 'myreceiptsbucket'
     # document = 'UploadHIP15.jpeg'
-    img_bytes = get_bytes(f"../data/maximages/{sys.argv[1]}", format="jpeg")
+    img_bytes = tools.get_bytes(f"../../data/maximages/{sys.argv[1]}", format="jpeg")
     response = process_receipt(img_bytes, upscale=False)
     print(json.dumps(response, indent=4))
 

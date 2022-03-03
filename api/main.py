@@ -1,13 +1,10 @@
 import uvicorn
+from dependency_injector.wiring import inject, Provide
 from typing import Optional
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from lib import tools
+from helpers import tools
 from routers import image, receipt
-
-# yes yes i will fix this later and have a proper setup.py
-#sys.path.insert(1, os.path.join(sys.path[0], '..'))
-
 
 app = FastAPI()
 
@@ -28,6 +25,11 @@ app.add_middleware(
 
 app.include_router(image.router)
 app.include_router(receipt.router)
+
+app.on_event("startup")
+async def startup_event():
+    print("test")
+    
 
 @app.get("/")
 async def read_root():

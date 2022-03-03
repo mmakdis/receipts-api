@@ -11,6 +11,35 @@ from io import BytesIO
 from skimage import data
 from skimage.filters.thresholding import threshold_otsu, threshold_local
 
+class DeepAPI():
+    """Replacement to Waifu2x's class focusing on DeepAPI methods and APi.
+    """
+    def __init__(self):
+        pass
+    def waifu2x(self, image, api_key="344e8250-df49-42d9-9a73-84cc9c206596"):
+        """Enhance an Image through DeepAI using Waifu2x.
+
+        Args:
+            image (str | bytes): if a string is provided, it is assumed as the path. Otherwise provide image's bytes.
+            api_key (str, optional): the API key. Defaults to "344e8250-df49-42d9-9a73-84cc9c206596".
+        """
+        if isinstance(image, str):
+            image = open(image, 'rb')
+        r = requests.post(
+            "https://api.deepai.org/api/waifu2x",
+            files={
+                'image': image,
+            },
+            headers={'api-key': api_key}
+            )
+        if "output_url" in r.json():
+            a = BytesIO(requests.get(r.json()["output_url"]).content)
+            Image.open(a).show()
+            return requests.get(r.json()["output_url"]).content
+        return None
+    def zento(self, image, api_key="fb346ba9-8d8a-4f61-bd2d-593f702c5ae6"):
+        pass
+
 class Waifu2x():
     """waifu2x is an image scaling and noise reduction program for anime-style art and other types of photos.
     It's insanely good. It's open-source: https://github.com/nagadomi/waifu2x
