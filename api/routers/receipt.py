@@ -1,4 +1,6 @@
-from helpers import hashing, textract, tools
+from matplotlib.pyplot import text
+from helpers import receipt, tools
+from helpers.image import textract
 from io import BytesIO
 from fastapi import APIRouter
 from typing import Optional, List
@@ -16,9 +18,9 @@ async def receipt_test(key: str) -> str:
     return {"ping": conn.ping()}
 
 @router.post("/receipt/hash")
-async def hash_receipt(api_key: str, receipt: Optional[dict]) -> str:
+async def hash_receipt(api_key: str, receipt_data: Optional[dict]) -> str:
     if tools.validate_key(api_key):
-        return hashing.hash_receipt(receipt) 
+        return receipt.hash_receipt(receipt_data) 
     return {"api_valid": False}
 
 
@@ -27,8 +29,7 @@ async def upload_receipt(file: UploadFile = File(...), enhance: Optional[bool] =
     if file.content_type not in ["image/png", "image/jpeg"]:
         return {"detail": "Invalid content type"}
     receipt = await file.read()
-    # Image.open(BytesIO(receipt)).show()
-    if output := textract.process_receipt(receipt, upscale=enhance):
+    if output := textract.analyze_expense(receipt, upscale=enhance):
         if "detail" in output:
             return output
         if dboutput := conn.add_receipt(output):

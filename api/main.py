@@ -4,8 +4,7 @@ from typing import Optional
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from helpers import tools
-from routers import image, receipt
-
+from routers import receipt, image
 app = FastAPI()
 
 origins = [

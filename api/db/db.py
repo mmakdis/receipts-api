@@ -1,13 +1,24 @@
 """Redis client module."""
 from redis import asyncio, Redis
-from helpers import hashing
+from helpers import receipt
+
 class DB():
+    """Interface for the API's db. Uses Redis.
+
+    Autoconnect with DB.connect() to connect to localhost.
+    """
+
     def __init__(self):
         self.conn = None
     
-    def __str__(self):
+    def __str__(self) -> str:
+        """Pretty-prints the instance object.
+
+        Returns:
+            str: "host:port"
+        """
         if self.conn:
-            return f"{self.get_host()}|{self.get_port()}"
+            return f"{self.get_host()}:{self.get_port()}"
         else:
             return "Not connected to the database, please connect!"
         
@@ -37,23 +48,21 @@ class DB():
     def ping(self):
         return "PONG" if self.conn.ping() else "NAH"
     
-    def receipt_safe(self, receipt: dict):
+    def receipt_safe(self, receipt_data: dict):
         for r in self.conn.smembers("receipts"):
-            receipt_dict = hashing.get_dict(r)
-            score = hashing.receipts_similarity(receipt, receipt_dict)
-            print(score)
+            receipt_dict2 = receipt.get_dict(r)
+            score = receipt.receipts_similarity(receipt_data, receipt_dict2)
             if score > 0.70:
                 return False
         return True
     
-    def add_receipt(self, receipt: dict):
-        if self.receipt_safe(receipt):
-            if self.conn.sadd("receipts", hashing.get_json(receipt)):
-                return {"detail": "OK"}
-            else:
-                return {"detail": "something went wrong when adding the receipt"}
-        else:
+    def add_receipt(self, receipt_data: dict):
+        if not self.receipt_safe(receipt_data):
             return {"detail": "High chance of receipt already existing!"}
+        if self.conn.sadd("receipts", receipt.get_json(receipt_data)):
+            return {"detail": "OK"}
+        else:
+            return {"detail": "something went wrong when adding the receipt"}
     
     def get_receipt(self):
         pass
