@@ -49,10 +49,25 @@ class DB():
         return "PONG" if self.conn.ping() else "NAH"
     
     def receipt_safe(self, receipt_data: dict):
+        """Checks if the receipt is safe to add.
+
+        Args:
+            receipt_data (dict): the Metadata to add.
+
+        Returns:
+            bool: true if the receipt is safe to add, false otherwise.
+        """
         for r in self.conn.smembers("receipts"):
             receipt_dict2 = receipt.get_dict(r)
+            if "meta" in receipt_data and "meta" in receipt_dict2:
+                stand_1 = receipt.get_standards(receipt_data)
+                stand_2 = receipt.get_standards(receipt_dict2)
+                if stand_1 == stand_2:
+                    return False
+                else:
+                    return True
             score = receipt.receipts_similarity(receipt_data, receipt_dict2)
-            if score > 0.70:
+            if score > 0.75:
                 return False
         return True
     

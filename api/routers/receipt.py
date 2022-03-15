@@ -13,9 +13,11 @@ conn.connect()
 
 router = APIRouter()
 
+
 @router.post("/receipt/test")
 async def receipt_test(key: str) -> str:
     return {"ping": conn.ping()}
+
 
 @router.post("/receipt/hash")
 async def hash_receipt(api_key: str, receipt_data: Optional[dict]) -> str:
@@ -25,13 +27,16 @@ async def hash_receipt(api_key: str, receipt_data: Optional[dict]) -> str:
 
 
 @router.post("/receipt/upload")
-async def upload_receipt(file: UploadFile = File(...), enhance: Optional[bool] = False):
+async def upload_receipt(file: UploadFile = File(...), enhance: Optional[bool] = False, antiFraud: Optional[bool] = False, noWriting: Optional[bool] = False):
     if file.content_type not in ["image/png", "image/jpeg"]:
         return {"detail": "Invalid content type"}
-    receipt = await file.read()
-    if output := textract.analyze_expense(receipt, upscale=enhance):
+    receipt_data = await file.read()
+    if output := textract.analyze_expense(receipt_data, upscale=enhance):
+        if not receipt.get_heineken_products(output):
+            return {"detail": "no heineken products found"}
         if "detail" in output:
             return output
         if dboutput := conn.add_receipt(output):
             return dboutput if dboutput["detail"] != "OK" else output
+        return output
     return {"detail": "Something went wrong"}

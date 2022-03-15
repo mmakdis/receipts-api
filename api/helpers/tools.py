@@ -50,3 +50,6 @@ def get_bytes(image: str, format='JPEG'):
         buf = io.BytesIO()
         img.save(buf, format=format)
         return buf.getvalue()
+    
+def all_in(candidates, sequence):
+    return next((element for element in candidates if element in sequence), False)

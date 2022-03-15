@@ -7,7 +7,7 @@ import botocore
 import io
 import os
 from io import BytesIO
-from helpers.image import barcode, deepai
+from . import barcode, deepai
 from PIL import Image
 
 def upload_bucket(image, bucket = "myreceiptsbuclet", overwrite=False) -> bool:
@@ -45,7 +45,7 @@ def analyze_expense(img, upscale=False) -> dict:
         image (bytes): the image in bytes.
     """
     if upscale:
-        enhanced_image = deepai.waifu2x.deepai_api(img)
+        enhanced_image = deepai.waifu2x(img)
         img = enhanced_image or img
     image_stream = io.BytesIO(img)
     #Image.open(image_stream).show()
@@ -161,13 +161,20 @@ def _parse_analyze_expense_output(response):
         for summary_field in expense_doc["SummaryFields"]:
             summary_field = _clean_field(summary_field)
             current_value = summary_field["ValueDetection"]["Text"].lower()
-            if summary_field["Type"]["Text"] == "VENDOR_NAME":
+            current_type = summary_field["Type"]["Text"]
+            if current_type == "VENDOR_NAME":
                 metadata["vendor"] = current_value
-            if summary_field["Type"]["Text"] == "OTHER":
-                metadata["meta"][summary_field["LabelDetection"]["Text"].lower()] = current_value
-            if summary_field["Type"]["Text"] == "TOTAL":
+            if current_type == "INVOICE_RECEIPT_DATE":
+                metadata["meta"]["receipt_date"] = current_value
+            if current_type == "INVOICE_RECEIPT_ID":
+                metadata["meta"]["receipt_id"] = current_value
+            if current_type == "OTHER":
+                metakey = summary_field["LabelDetection"]["Text"].lower()
+                metakey = metakey[:-1] if metakey.endswith(":") else metakey
+                metadata["meta"][metakey] = current_value
+            if current_type == "TOTAL":
                 metadata["total"]["total"] = current_value
-            if summary_field["Type"]["Text"] == "SUBTOTAL":
+            if current_type == "SUBTOTAL":
                 metadata["total"]["subtotal"] = current_value
         for line_item_group in expense_doc["LineItemGroups"]:
             for line_items in line_item_group["LineItems"]:
@@ -193,5 +200,6 @@ def _parse_analyze_expense_output(response):
                     # reset current item
                     if expense_fields["Type"]["Text"] == "EXPENSE_ROW":
                         current_item = ""
-        
+
     return metadata
+
